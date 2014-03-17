@@ -16,6 +16,7 @@ import java.util.Map.Entry;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
@@ -56,11 +57,15 @@ public class CheckAttendance {
 
 	private void updateStudentsAttendance() {
 		List<String> ambiguous = checkPartialNumbers(notecards);
-		System.out.println("First pass:");
-		printAmbiguous(ambiguous);
-		ambiguous = checkPartialNumbers(ambiguous);
-		System.out.println("Second pass:");
-		printAmbiguous(ambiguous);
+		if (!ambiguous.isEmpty()) {
+			System.out.println("Trying to find unmatched students (#1):");
+			printAmbiguous(ambiguous);
+		}
+		if (!ambiguous.isEmpty()) {
+			ambiguous = checkPartialNumbers(ambiguous);
+			System.out.println("Trying to find unmatched students (#2):");
+			printAmbiguous(ambiguous);
+		}
 	}
 
 	private void printAmbiguous(List<String> ambiguous) {
@@ -94,15 +99,17 @@ public class CheckAttendance {
 	private List<String> checkPartialNumbers(List<String> partialNumbers) {
 		List<String> ambiguous = new LinkedList<>();
 		for (final String notecard : partialNumbers) {
-			Collection matchingStudents = CollectionUtils.select(studentIDs.entrySet(), new PartialNumberPredicate(notecard));
+			if (!StringUtils.isEmpty(notecard.trim())) {
+				Collection matchingStudents = CollectionUtils.select(studentIDs.entrySet(), new PartialNumberPredicate(notecard));
 
-			if (matchingStudents.isEmpty()) {
-				System.out.println("EMPTY: " + notecard);
-			} else if (matchingStudents.size() > 1) {
-				ambiguous.add(notecard);
-			} else {
-				String studentID = ((Entry<String, Integer>) matchingStudents.iterator().next()).getKey();
-				studentIDs.put(studentID, studentIDs.get(studentID) + 1);
+				if (matchingStudents.isEmpty()) {
+					System.out.println("NO MATCH: " + notecard);
+				} else if (matchingStudents.size() > 1) {
+					ambiguous.add(notecard);
+				} else {
+					String studentID = ((Entry<String, Integer>) matchingStudents.iterator().next()).getKey();
+					studentIDs.put(studentID, studentIDs.get(studentID) + 1);
+				}
 			}
 		}
 		return ambiguous;
@@ -119,7 +126,9 @@ public class CheckAttendance {
 		List<String[]> all = reader.readAll();
 
 		for (String[] student : all) {
-			studentIDs.put(student[0], 0);
+			if (!StringUtils.isEmpty(student[0].trim())) {
+				studentIDs.put(student[0], 0);
+			}
 		}
 		reader.close();
 	}
